@@ -38,5 +38,5 @@ You don't need to do anything! The extension will automatically save and restore
 - Only text files are currently supported.
 
 ## Requirements
-- Visual Studio Code version 1.94.0 or higher
+- Visual Studio Code version 1.93.0 or higher
 - Git installed and initialized in your workspace
