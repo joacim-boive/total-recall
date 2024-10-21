@@ -1,6 +1,6 @@
 # Total Recall
 
-**Total Recall**  helps you recall which files you had open when you changed Git branches. This extension aims to improve your workflow by preserving your working context across branch switches.
+**Total Recall**  is a VSCode extension that helps you recall which files you had open when you changed Git branches. This extension aims to improve your workflow by preserving your working context across branch switches.
 
 ## Features
 - Automatically saves the state of your open files when switching Git branches
@@ -20,6 +20,10 @@ You don't need to do anything! The extension will automatically save and restore
 
 ## Roadmap
 - Add AI that scans your commits and recaps what you've been working on lately to help you get back up to speed.
+
+## Limitations
+- It wont keep track of split views.
+- Only text files are currently supported.
 
 ## Requirements
 - Visual Studio Code version 1.94.0 or higher
