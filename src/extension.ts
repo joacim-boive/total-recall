@@ -7,7 +7,8 @@ import { setupGitBranchTracker } from "./gitBranchTracker";
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   console.log("Total Recall - is now monitoring your git branches.");
-
+  vscode.window.showInformationMessage("Total Recall - is now monitoring your git branches.");
+  
   setupGitBranchTracker(context);
 }
 
