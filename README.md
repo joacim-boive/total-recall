@@ -18,15 +18,6 @@ the extension will save your open files and restore them when you switch branche
 - Automatically saves the state of your open files when switching Git branches
 - Quickly restores your previous working context when returning to a branch
 
-## Installation
-This extension is not yet available on the VS Code Marketplace. To install:
-
-1. Download the `.vsix` file from the latest release
-2. Open Visual Studio Code
-3. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X` on macOS)
-4. Click on the "..." at the top of the Extensions view and select "Install from VSIX..."
-5. Choose the downloaded `.vsix` file
-
 ## Usage
 You don't need to do anything! The extension will automatically save and restore your open files when you switch branches.
 
