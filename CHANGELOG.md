@@ -3,6 +3,10 @@
 All notable changes to the "Total Recall" extension will be documented in this file.
 
 
+## [0.5.5]
+
+- Updated README
+
 ## [0.5.4]
 
 - Added a demo video to the README
