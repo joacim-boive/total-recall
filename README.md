@@ -6,10 +6,12 @@
 
 ### Default behavior
 no changes are made your open files
+
 [![Total Recall Demo](https://img.youtube.com/vi/iNPp7o6qepI/0.jpg)](https://youtu.be/iNPp7o6qepI)
 
 ### With Total Recall enabled
 the extension will save your open files and restore them when you switch branches
+
 [![Total Recall Demo](https://img.youtube.com/vi/MUT8jQaq-sY/0.jpg)](https://youtu.be/MUT8jQaq-sY)
 
 ## Features
