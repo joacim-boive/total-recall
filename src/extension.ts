@@ -1,14 +1,26 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from "vscode";
-import { setupGitBranchTracker } from "./gitBranchTracker";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+import * as vscode from 'vscode';
+import { setupGitBranchTracker } from './gitBranchTracker';
+
 export function activate(context: vscode.ExtensionContext) {
-  console.log("Total Recall - is now monitoring your git branches.");
-  vscode.window.showInformationMessage("Total Recall - is now monitoring your git branches.");
-  
+  console.log('Total Recall - is now monitoring your git branches.');
+  vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Total Recall',
+      cancellable: false,
+    },
+    (progress) => {
+      progress.report({ message: 'Now monitoring your git branches' });
+
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 3000); // Notification will auto-dismiss after 3 seconds
+      });
+    }
+  );
+
   setupGitBranchTracker(context);
 }
 
