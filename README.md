@@ -20,10 +20,19 @@ the extension will save your open files and restore them when you switch branche
 
 - Automatically saves the state of your open files when switching Git branches
 - Quickly restores your previous working context when returning to a branch
+- Full support for multi-root workspaces with per-repository tab tracking
 
 ## Usage
 
 You don't need to do anything! The extension will automatically save and restore your open files when you switch branches.
+
+## Multi-root Workspaces
+
+Total Recall fully supports multi-root workspaces. Each Git repository in your workspace is tracked independently:
+
+- When you switch branches in one repository, only the tabs belonging to that repository are closed and restored
+- Tabs from other repositories in the workspace remain unaffected
+- Each repository maintains its own branch-to-files mapping
 
 ## Roadmap
 
@@ -36,5 +45,5 @@ You don't need to do anything! The extension will automatically save and restore
 
 ## Requirements
 
-- Visual Studio Code version 1.93.0 or higher
+- Visual Studio Code version 1.91.0 or higher
 - Git installed and initialized in your workspace

@@ -19,11 +19,12 @@
   "contributes": {
     "commands": [],
     "configuration": {
+      "title": "Total Recall",
       "properties": {
-        "extension-testing.tabGroups": {
+        "totalRecall.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable tab groups functionality"
+          "description": "Enable automatic saving and restoring of open files when switching Git branches"
         }
       }
     }
