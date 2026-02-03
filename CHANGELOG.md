@@ -2,6 +2,11 @@
 
 All notable changes to the "Total Recall" extension will be documented in this file.
 
+## [0.7.0]
+
+- Fix support for workspaces
+-
+
 ## [0.6.1]
 
 - Bug fixes
