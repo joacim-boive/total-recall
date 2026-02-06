@@ -140,29 +140,19 @@ async function processBranchChange(
     const filesToOpen = branchData?.files ?? [];
     const activeFile = branchData?.activeFile ?? null;
 
-    // Determine which file should receive focus (fall back to first file)
+    // Open files in stored tab order; give focus to the previously active file
     const focusFile = activeFile ?? filesToOpen[0] ?? null;
 
-    // Phase 1: Open non-active files in the background
     for (const file of filesToOpen) {
-      if (file === focusFile) {
-        continue; // Will be opened last with focus
-      }
       try {
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
-        await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+        const isFocusFile = file === focusFile;
+        await vscode.window.showTextDocument(doc, {
+          preview: false,
+          preserveFocus: !isFocusFile,
+        });
       } catch (error) {
         console.error(`[Total Recall] Failed to open file: ${file}`, error);
-      }
-    }
-
-    // Phase 2: Open the focus file last so it is both visible and focused
-    if (focusFile) {
-      try {
-        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(focusFile));
-        await vscode.window.showTextDocument(doc, { preview: false });
-      } catch (error) {
-        console.error(`[Total Recall] Failed to open focus file: ${focusFile}`, error);
       }
     }
   }
