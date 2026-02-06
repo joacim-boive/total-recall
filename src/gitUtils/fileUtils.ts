@@ -49,16 +49,28 @@ export function getOpenFilesForRepo(repoRoot: string): Set<string> {
 
 /**
  * Gets the currently active (focused) file if it belongs to a specific repository.
- * Uses the active text editor to determine which file the user is working on.
+ * First checks the active text editor, then falls back to the active tab in the
+ * active tab group (which still points to a file even when the terminal has focus).
  *
  * @param repoRoot - The absolute path of the repository root
  * @returns The file path of the active editor if it belongs to the repo, or null
  */
 export function getActiveFileForRepo(repoRoot: string): string | null {
-  const activeUri = vscode.window.activeTextEditor?.document.uri;
-  if (activeUri && isFileInRepo(activeUri.fsPath, repoRoot)) {
-    return activeUri.fsPath;
+  // Primary: check the active text editor
+  const activeEditorUri = vscode.window.activeTextEditor?.document.uri;
+  if (activeEditorUri && isFileInRepo(activeEditorUri.fsPath, repoRoot)) {
+    return activeEditorUri.fsPath;
   }
+
+  // Fallback: check the active tab (works even when terminal/panel has focus)
+  const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
+  if (activeTab?.input instanceof vscode.TabInputText) {
+    const fsPath = activeTab.input.uri.fsPath;
+    if (isFileInRepo(fsPath, repoRoot)) {
+      return fsPath;
+    }
+  }
+
   return null;
 }
 

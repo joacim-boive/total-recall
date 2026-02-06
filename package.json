@@ -2,7 +2,7 @@
   "name": "total-recall",
   "displayName": "Total Recall",
   "description": "It allows you to recall your context across branches.",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "publisher": "jboive",
   "icon": "images/icon-hd.png",
   "type": "commonjs",
