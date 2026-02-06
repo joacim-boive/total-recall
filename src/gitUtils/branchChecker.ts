@@ -138,9 +138,10 @@ async function processBranchChange(
   }
 
   // Save current branch's files (in tab order) and active tab for this repo (only if we have a valid current branch)
+  // Must save an array: workspace state is JSON-serialized and Set would become {} on persist.
   if (currentBranch) {
     branchFileMapByRepo[repoKey][currentBranch] = {
-      files: openFiles,
+      files: Array.from(openFiles),
       activeFile: getActiveFileForRepo(repository.rootUri.fsPath),
     };
   }
@@ -185,7 +186,8 @@ async function processBranchChange(
 
     // Restore files for the new branch (for this repo only)
     const branchData = branchFileMapByRepo[repoKey]?.[newBranch];
-    const filesToOpen = branchData?.files ?? [];
+    const rawFiles = branchData?.files;
+    const filesToOpen = Array.isArray(rawFiles) ? rawFiles : [];
     const activeFile = branchData?.activeFile ?? null;
 
     // Open files in stored tab order; give focus to the previously active file
