@@ -24,21 +24,25 @@ export function isFileInRepo(filePath: string, repoRoot: string): boolean {
 }
 
 /**
- * Gets all open text files that belong to a specific repository.
- * Iterates through all tab groups and filters files by repo root.
+ * Gets all open text files that belong to a specific repository, in tab order.
+ * Iterates through all tab groups (and tabs within each group) so that the
+ * returned order matches the user's tab bar order. Duplicates are omitted
+ * (first occurrence wins) so the same file open in multiple groups is stored once.
  *
  * @param repoRoot - The absolute path of the repository root
- * @returns A Set of file paths that are open and belong to the specified repo
+ * @returns An array of file paths in tab order that are open and belong to the specified repo
  */
-export function getOpenFilesForRepo(repoRoot: string): Set<string> {
-  const openFiles = new Set<string>();
+export function getOpenFilesForRepo(repoRoot: string): string[] {
+  const openFiles: string[] = [];
+  const seen = new Set<string>();
 
   for (const tabGroup of vscode.window.tabGroups.all) {
     for (const tab of tabGroup.tabs) {
       if (tab.input instanceof vscode.TabInputText) {
         const fsPath = tab.input.uri.fsPath;
-        if (isFileInRepo(fsPath, repoRoot)) {
-          openFiles.add(fsPath);
+        if (isFileInRepo(fsPath, repoRoot) && !seen.has(fsPath)) {
+          seen.add(fsPath);
+          openFiles.push(fsPath);
         }
       }
     }

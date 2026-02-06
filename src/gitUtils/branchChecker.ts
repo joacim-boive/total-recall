@@ -109,10 +109,10 @@ async function processBranchChange(
     branchFileMapByRepo[repoKey] = {};
   }
 
-  // Save current branch's files and active tab for this repo (only if we have a valid current branch)
+  // Save current branch's files (in tab order) and active tab for this repo (only if we have a valid current branch)
   if (currentBranch) {
     branchFileMapByRepo[repoKey][currentBranch] = {
-      files: Array.from(openFiles),
+      files: openFiles,
       activeFile: getActiveFileForRepo(repository.rootUri.fsPath),
     };
   }
