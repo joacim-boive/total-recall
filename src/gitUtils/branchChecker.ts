@@ -1,12 +1,12 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { Repository } from '../types';
 import { isRecentlyCreatedOrUpdatedBranch } from './branchUtils';
-import { getOpenFilesForRepo, getTabsForRepo } from './fileUtils';
+import { getActiveFileForRepo, getOpenFilesForRepo, getTabsForRepo } from './fileUtils';
 
 /**
  * Storage key for the per-repo branch file map.
- * Structure: Record<repoRoot, Record<branchName, filePaths[]>>
+ * Structure: Record<repoRoot, Record<branchName, BranchTabState>>
  */
 const STORAGE_KEY = 'branchFileMapByRepo';
 
@@ -18,9 +18,25 @@ const STORAGE_KEY = 'branchFileMapByRepo';
 const currentBranchByRepo = new Map<string, string>();
 
 /**
+ * Guard against concurrent branch-change processing per repository.
+ * If a second onDidChange fires while we're still processing the first,
+ * we note the pending change and reprocess after the current one finishes.
+ */
+const processingRepos = new Set<string>();
+const pendingRepos = new Set<string>();
+
+/**
+ * State for a single branch's open tabs, including which file was active.
+ */
+type BranchTabState = {
+  files: string[];
+  activeFile: string | null;
+};
+
+/**
  * Type for the per-repo branch file map stored in workspace state.
  */
-type BranchFileMapByRepo = Record<string, Record<string, string[]>>;
+type BranchFileMapByRepo = Record<string, Record<string, BranchTabState>>;
 
 /**
  * Normalizes a repository root path for consistent key usage.
@@ -36,6 +52,9 @@ function normalizeRepoKey(repoRoot: string): string {
  * Checks for branch changes in a specific repository and handles
  * saving/restoring open files accordingly.
  *
+ * Includes a concurrency guard: if onDidChange fires while we're already
+ * processing, the duplicate is noted and re-checked after the current run.
+ *
  * @param repository - The Git repository that may have changed branches
  * @param context - The VS Code extension context for state storage
  */
@@ -44,62 +63,119 @@ export async function checkBranchChange(
   context: vscode.ExtensionContext
 ): Promise<void> {
   const repoKey = normalizeRepoKey(repository.rootUri.fsPath);
-  const newBranch = repository.state.HEAD?.name || 'HEAD'; // Use 'HEAD' for detached state
+
+  if (processingRepos.has(repoKey)) {
+    pendingRepos.add(repoKey);
+    return;
+  }
+
+  processingRepos.add(repoKey);
+  try {
+    do {
+      pendingRepos.delete(repoKey);
+      await processBranchChange(repository, context, repoKey);
+    } while (pendingRepos.has(repoKey));
+  } finally {
+    processingRepos.delete(repoKey);
+  }
+}
+
+/**
+ * Core logic for detecting a branch change and saving/restoring tabs.
+ */
+async function processBranchChange(
+  repository: Repository,
+  context: vscode.ExtensionContext,
+  repoKey: string
+): Promise<void> {
+  const newBranch = repository.state.HEAD?.name || 'HEAD';
   const currentBranch = currentBranchByRepo.get(repoKey) || '';
 
-  if (newBranch !== currentBranch) {
-    console.log(`[Total Recall] Branch changed in ${repoKey}: ${currentBranch} → ${newBranch}`);
-
-    // Get open files for THIS repo only
-    const openFiles = getOpenFilesForRepo(repository.rootUri.fsPath);
-
-    // Load existing per-repo branch file map
-    const branchFileMapByRepo =
-      (context.workspaceState.get(STORAGE_KEY) as BranchFileMapByRepo) || {};
-
-    // Initialize this repo's map if it doesn't exist
-    if (!branchFileMapByRepo[repoKey]) {
-      branchFileMapByRepo[repoKey] = {};
-    }
-
-    // Save current branch's files for this repo (only if we have a valid current branch)
-    if (currentBranch) {
-      branchFileMapByRepo[repoKey][currentBranch] = Array.from(openFiles);
-    }
-
-    // Persist the updated map
-    await context.workspaceState.update(STORAGE_KEY, branchFileMapByRepo);
-
-    const isOldBranch = !(await isRecentlyCreatedOrUpdatedBranch(repository, newBranch));
-
-    // Close and restore only if switching to an existing branch
-    // When creating a new branch, keep editors open
-    if (isOldBranch) {
-      // Close only tabs belonging to THIS repo
-      const tabsToClose = getTabsForRepo(repository.rootUri.fsPath);
-      for (const tab of tabsToClose) {
-        try {
-          await vscode.window.tabGroups.close(tab, false);
-        } catch (error) {
-          console.error(`[Total Recall] Failed to close tab:`, error);
-        }
-      }
-
-      // Open files for the new branch (for this repo only)
-      const filesToOpen = branchFileMapByRepo[repoKey]?.[newBranch] || [];
-      for (const file of filesToOpen) {
-        try {
-          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
-          await vscode.window.showTextDocument(doc, { preview: false });
-        } catch (error) {
-          console.error(`[Total Recall] Failed to open file: ${file}`, error);
-        }
-      }
-    }
-
-    // Update the in-memory current branch for this repo
-    currentBranchByRepo.set(repoKey, newBranch);
+  if (newBranch === currentBranch) {
+    return;
   }
+
+  console.log(`[Total Recall] Branch changed in ${repoKey}: ${currentBranch} → ${newBranch}`);
+
+  // ── SAVE current branch state ──────────────────────────────────────────
+  // Capture which files are open (in tab order) and which one has focus.
+  // getOpenFilesForRepo returns string[] already (not a Set), so it
+  // serializes correctly to JSON via workspaceState.
+  const openFiles = getOpenFilesForRepo(repository.rootUri.fsPath);
+  const activeFile = getActiveFileForRepo(repository.rootUri.fsPath);
+
+  const branchFileMapByRepo =
+    (context.workspaceState.get(STORAGE_KEY) as BranchFileMapByRepo) || {};
+
+  if (!branchFileMapByRepo[repoKey]) {
+    branchFileMapByRepo[repoKey] = {};
+  }
+
+  if (currentBranch) {
+    branchFileMapByRepo[repoKey][currentBranch] = {
+      files: openFiles,
+      activeFile,
+    };
+    console.log(
+      `[Total Recall] Saved ${openFiles.length} file(s) for ${currentBranch}, active: ${activeFile}`
+    );
+  }
+
+  await context.workspaceState.update(STORAGE_KEY, branchFileMapByRepo);
+
+  // ── RESTORE target branch state ────────────────────────────────────────
+  const isOldBranch = !(await isRecentlyCreatedOrUpdatedBranch(repository, newBranch));
+
+  if (isOldBranch) {
+    // Close all tabs belonging to THIS repo in one batch
+    const tabsToClose = getTabsForRepo(repository.rootUri.fsPath);
+    if (tabsToClose.length > 0) {
+      try {
+        await vscode.window.tabGroups.close(tabsToClose, false);
+      } catch (error) {
+        console.error('[Total Recall] Failed to close tabs:', error);
+      }
+    }
+
+    // Read the stored state for the target branch
+    const branchData = branchFileMapByRepo[repoKey]?.[newBranch];
+    const filesToOpen = Array.isArray(branchData?.files) ? branchData.files : [];
+    const focusFile = branchData?.activeFile ?? filesToOpen[0] ?? null;
+
+    console.log(
+      `[Total Recall] Restoring ${filesToOpen.length} file(s) for ${newBranch}, focus: ${focusFile}`
+    );
+
+    // Step 1: Open every file in stored tab order, all in the background.
+    //         preserveFocus:true ensures tabs appear in order without
+    //         fighting over which one is visible.
+    for (const file of filesToOpen) {
+      try {
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+        await vscode.window.showTextDocument(doc, {
+          preview: false,
+          preserveFocus: true,
+        });
+      } catch (error) {
+        console.error(`[Total Recall] Failed to open file: ${file}`, error);
+      }
+    }
+
+    // Step 2: Bring focus to the tab that was active before the branch switch.
+    //         This is a separate call so it works regardless of where the
+    //         focus file sits in the tab order (first, middle, or last).
+    if (focusFile) {
+      try {
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(focusFile));
+        await vscode.window.showTextDocument(doc, { preview: false });
+      } catch (error) {
+        console.error(`[Total Recall] Failed to focus file: ${focusFile}`, error);
+      }
+    }
+  }
+
+  // Update the in-memory current branch for this repo
+  currentBranchByRepo.set(repoKey, newBranch);
 }
 
 /**
