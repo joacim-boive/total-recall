@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
+import * as vscode from 'vscode';
 
 /**
  * Checks if a file path is within a repository root directory.
@@ -45,6 +45,21 @@ export function getOpenFilesForRepo(repoRoot: string): Set<string> {
   }
 
   return openFiles;
+}
+
+/**
+ * Gets the currently active (focused) file if it belongs to a specific repository.
+ * Uses the active text editor to determine which file the user is working on.
+ *
+ * @param repoRoot - The absolute path of the repository root
+ * @returns The file path of the active editor if it belongs to the repo, or null
+ */
+export function getActiveFileForRepo(repoRoot: string): string | null {
+  const activeUri = vscode.window.activeTextEditor?.document.uri;
+  if (activeUri && isFileInRepo(activeUri.fsPath, repoRoot)) {
+    return activeUri.fsPath;
+  }
+  return null;
 }
 
 /**

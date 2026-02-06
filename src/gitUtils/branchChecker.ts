@@ -1,12 +1,12 @@
-import * as vscode from 'vscode';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { Repository } from '../types';
 import { isRecentlyCreatedOrUpdatedBranch } from './branchUtils';
-import { getOpenFilesForRepo, getTabsForRepo } from './fileUtils';
+import { getActiveFileForRepo, getOpenFilesForRepo, getTabsForRepo } from './fileUtils';
 
 /**
  * Storage key for the per-repo branch file map.
- * Structure: Record<repoRoot, Record<branchName, filePaths[]>>
+ * Structure: Record<repoRoot, Record<branchName, BranchTabState>>
  */
 const STORAGE_KEY = 'branchFileMapByRepo';
 
@@ -18,9 +18,35 @@ const STORAGE_KEY = 'branchFileMapByRepo';
 const currentBranchByRepo = new Map<string, string>();
 
 /**
- * Type for the per-repo branch file map stored in workspace state.
+ * State for a single branch's open tabs, including which file was active.
  */
-type BranchFileMapByRepo = Record<string, Record<string, string[]>>;
+type BranchTabState = {
+  files: string[];
+  activeFile: string | null;
+};
+
+/**
+ * Type for the per-repo branch file map stored in workspace state.
+ * The inner value can be a legacy `string[]` (from older versions) or the new `BranchTabState`.
+ */
+type BranchFileMapByRepo = Record<string, Record<string, string[] | BranchTabState>>;
+
+/**
+ * Migrates legacy branch data (plain `string[]`) to the new `BranchTabState` format.
+ * Returns the data as-is if it's already in the new format.
+ *
+ * @param data - The stored branch data, either legacy or current format
+ * @returns A normalized `BranchTabState`
+ */
+function migrateBranchData(data: string[] | BranchTabState | undefined): BranchTabState {
+  if (!data) {
+    return { files: [], activeFile: null };
+  }
+  if (Array.isArray(data)) {
+    return { files: data, activeFile: null };
+  }
+  return data;
+}
 
 /**
  * Normalizes a repository root path for consistent key usage.
@@ -62,9 +88,12 @@ export async function checkBranchChange(
       branchFileMapByRepo[repoKey] = {};
     }
 
-    // Save current branch's files for this repo (only if we have a valid current branch)
+    // Save current branch's files and active tab for this repo (only if we have a valid current branch)
     if (currentBranch) {
-      branchFileMapByRepo[repoKey][currentBranch] = Array.from(openFiles);
+      branchFileMapByRepo[repoKey][currentBranch] = {
+        files: Array.from(openFiles),
+        activeFile: getActiveFileForRepo(repository.rootUri.fsPath),
+      };
     }
 
     // Persist the updated map
@@ -85,12 +114,29 @@ export async function checkBranchChange(
         }
       }
 
-      // Open files for the new branch (for this repo only)
-      const filesToOpen = branchFileMapByRepo[repoKey]?.[newBranch] || [];
+      // Restore files for the new branch (for this repo only)
+      const branchData = migrateBranchData(branchFileMapByRepo[repoKey]?.[newBranch]);
+      const filesToOpen = branchData.files;
+      const activeFile = branchData.activeFile;
+
+      // Phase 1: Open the active file first so the user can start working immediately
+      if (activeFile) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(activeFile));
+          await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
+        } catch (error) {
+          console.error(`[Total Recall] Failed to open active file: ${activeFile}`, error);
+        }
+      }
+
+      // Phase 2: Open remaining tabs in the background
       for (const file of filesToOpen) {
+        if (file === activeFile) {
+          continue; // Already opened with focus
+        }
         try {
           const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
-          await vscode.window.showTextDocument(doc, { preview: false });
+          await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
         } catch (error) {
           console.error(`[Total Recall] Failed to open file: ${file}`, error);
         }

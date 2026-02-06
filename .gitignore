@@ -73,3 +73,7 @@ yarn-error.log*
 Network Trash Folder
 Temporary Items
 .apdisk
+.history
+
+# History
+.history
