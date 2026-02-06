@@ -29,6 +29,9 @@ export function isFileInRepo(filePath: string, repoRoot: string): boolean {
  * returned order matches the user's tab bar order. Duplicates are omitted
  * (first occurrence wins) so the same file open in multiple groups is stored once.
  *
+ * IMPORTANT: Returns a plain string[] (not a Set) so the result serializes
+ * correctly to JSON when stored via workspaceState.
+ *
  * @param repoRoot - The absolute path of the repository root
  * @returns An array of file paths in tab order that are open and belong to the specified repo
  */
