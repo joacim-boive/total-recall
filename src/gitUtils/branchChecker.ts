@@ -58,6 +58,23 @@ function normalizeRepoKey(repoRoot: string): string {
  * @param repository - The Git repository that may have changed branches
  * @param context - The VS Code extension context for state storage
  */
+const DEBUG_LOG = (payload: Record<string, unknown>) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/fdb7687f-e8f6-43d1-9103-b264da4803bd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'branchChecker.ts',
+      message: payload['message'] as string,
+      data: payload,
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      hypothesisId: payload['hypothesisId'],
+    }),
+  }).catch(() => {});
+  // #endregion
+};
+
 export async function checkBranchChange(
   repository: Repository,
   context: vscode.ExtensionContext
@@ -91,6 +108,17 @@ async function processBranchChange(
   const newBranch = repository.state.HEAD?.name || 'HEAD';
   const currentBranch = currentBranchByRepo.get(repoKey) || '';
 
+  // #region agent log
+  DEBUG_LOG({
+    hypothesisId: 'A',
+    message: 'processBranchChange entry',
+    repoKey,
+    newBranch,
+    currentBranch,
+    branchChangeDetected: newBranch !== currentBranch,
+  });
+  // #endregion
+
   if (newBranch === currentBranch) {
     return;
   }
@@ -122,11 +150,31 @@ async function processBranchChange(
 
   const isOldBranch = !(await isRecentlyCreatedOrUpdatedBranch(repository, newBranch));
 
+  // #region agent log
+  DEBUG_LOG({
+    hypothesisId: 'B',
+    message: 'isOldBranch result',
+    newBranch,
+    isOldBranch,
+  });
+  // #endregion
+
   // Close and restore only if switching to an existing branch
   // When creating a new branch, keep editors open
   if (isOldBranch) {
     // Close all tabs belonging to THIS repo in one batch
     const tabsToClose = getTabsForRepo(repository.rootUri.fsPath);
+    const branchDataForLog = branchFileMapByRepo[repoKey]?.[newBranch];
+    const filesToOpenCount = branchDataForLog?.files?.length ?? 0;
+    // #region agent log
+    DEBUG_LOG({
+      hypothesisId: 'D,E',
+      message: 'close/restore counts',
+      tabsToCloseCount: tabsToClose.length,
+      filesToOpenCount,
+      filesToOpenSample: branchDataForLog?.files?.slice(0, 3) ?? [],
+    });
+    // #endregion
     if (tabsToClose.length > 0) {
       try {
         await vscode.window.tabGroups.close(tabsToClose, false);
@@ -171,6 +219,14 @@ async function processBranchChange(
 export function setCurrentBranch(repoRoot: string, branch: string): void {
   const repoKey = normalizeRepoKey(repoRoot);
   currentBranchByRepo.set(repoKey, branch);
+  // #region agent log
+  DEBUG_LOG({
+    hypothesisId: 'A',
+    message: 'setCurrentBranch init',
+    repoKey,
+    branch,
+  });
+  // #endregion
   console.log(`[Total Recall] Initial branch set for ${repoKey}: ${branch}`);
 }
 
