@@ -2,7 +2,7 @@
   "name": "total-recall",
   "displayName": "Total Recall",
   "description": "It allows you to recall your context across branches.",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "publisher": "jboive",
   "icon": "images/icon-hd.png",
   "type": "commonjs",
@@ -25,6 +25,19 @@
           "type": "boolean",
           "default": true,
           "description": "Enable automatic saving and restoring of open files when switching Git branches"
+        },
+        "totalRecall.restoreBehavior": {
+          "type": "string",
+          "default": "preserveTabOrder",
+          "enum": [
+            "preserveTabOrder",
+            "focusActiveTabFirst"
+          ],
+          "enumDescriptions": [
+            "Default. Restores tabs in saved order, then focuses the previously active tab.",
+            "Focuses the previously active tab first and opens remaining tabs in the background. Warning: saved tab order is not preserved in this mode."
+          ],
+          "description": "Controls how Total Recall restores tabs when switching back to a branch."
         }
       }
     }

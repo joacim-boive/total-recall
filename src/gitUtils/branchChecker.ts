@@ -37,6 +37,22 @@ type BranchTabState = {
  * Type for the per-repo branch file map stored in workspace state.
  */
 type BranchFileMapByRepo = Record<string, Record<string, BranchTabState>>;
+type RestoreBehavior = 'preserveTabOrder' | 'focusActiveTabFirst';
+
+const CONFIG_SECTION = 'totalRecall';
+const RESTORE_BEHAVIOR_SETTING = 'restoreBehavior';
+
+function getRestoreBehavior(): RestoreBehavior {
+  const value = vscode.workspace
+    .getConfiguration(CONFIG_SECTION)
+    .get<RestoreBehavior>(RESTORE_BEHAVIOR_SETTING, 'preserveTabOrder');
+
+  if (value === 'focusActiveTabFirst') {
+    return value;
+  }
+
+  return 'preserveTabOrder';
+}
 
 /**
  * Normalizes a repository root path for consistent key usage.
@@ -141,35 +157,59 @@ async function processBranchChange(
     const branchData = branchFileMapByRepo[repoKey]?.[newBranch];
     const filesToOpen = Array.isArray(branchData?.files) ? branchData.files : [];
     const focusFile = branchData?.activeFile ?? filesToOpen[0] ?? null;
+    const restoreBehavior = getRestoreBehavior();
 
     console.log(
-      `[Total Recall] Restoring ${filesToOpen.length} file(s) for ${newBranch}, focus: ${focusFile}`
+      `[Total Recall] Restoring ${filesToOpen.length} file(s) for ${newBranch}, focus: ${focusFile}, mode: ${restoreBehavior}`
     );
 
-    // Step 1: Open every file in stored tab order, all in the background.
-    //         preserveFocus:true ensures tabs appear in order without
-    //         fighting over which one is visible.
-    for (const file of filesToOpen) {
-      try {
-        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
-        await vscode.window.showTextDocument(doc, {
-          preview: false,
-          preserveFocus: true,
-        });
-      } catch (error) {
-        console.error(`[Total Recall] Failed to open file: ${file}`, error);
-      }
-    }
-
-    // Step 2: Bring focus to the tab that was active before the branch switch.
-    //         This is a separate call so it works regardless of where the
-    //         focus file sits in the tab order (first, middle, or last).
-    if (focusFile) {
+    if (restoreBehavior === 'focusActiveTabFirst' && focusFile) {
+      // Optional mode: focus the active file first, then open remaining files
+      // in the background. This intentionally prioritizes focus over tab order.
       try {
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(focusFile));
         await vscode.window.showTextDocument(doc, { preview: false });
       } catch (error) {
-        console.error(`[Total Recall] Failed to focus file: ${focusFile}`, error);
+        console.error(`[Total Recall] Failed to focus file first: ${focusFile}`, error);
+      }
+
+      for (const file of filesToOpen) {
+        if (file === focusFile) {
+          continue;
+        }
+
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+          await vscode.window.showTextDocument(doc, {
+            preview: false,
+            preserveFocus: true,
+          });
+        } catch (error) {
+          console.error(`[Total Recall] Failed to open file: ${file}`, error);
+        }
+      }
+    } else {
+      // Default mode: open all files in stored tab order in the background,
+      // then focus the previously active file.
+      for (const file of filesToOpen) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+          await vscode.window.showTextDocument(doc, {
+            preview: false,
+            preserveFocus: true,
+          });
+        } catch (error) {
+          console.error(`[Total Recall] Failed to open file: ${file}`, error);
+        }
+      }
+
+      if (focusFile) {
+        try {
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(focusFile));
+          await vscode.window.showTextDocument(doc, { preview: false });
+        } catch (error) {
+          console.error(`[Total Recall] Failed to focus file: ${focusFile}`, error);
+        }
       }
     }
   }

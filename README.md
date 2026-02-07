@@ -26,6 +26,14 @@ the extension will save your open files and restore them when you switch branche
 
 You don't need to do anything! The extension will automatically save and restore your open files when you switch branches.
 
+### Restore behavior option
+
+You can configure `Total Recall: Restore Behavior` in VS Code settings:
+
+- `preserveTabOrder` (default): opens tabs in saved order, then focuses the previously active tab.
+- `focusActiveTabFirst`: opens the previously active tab first, then opens remaining tabs in the background.
+  Warning: this mode does not preserve the saved tab order.
+
 ## Multi-root Workspaces
 
 Total Recall fully supports multi-root workspaces. Each Git repository in your workspace is tracked independently:
