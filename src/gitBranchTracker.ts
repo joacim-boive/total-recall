@@ -45,6 +45,13 @@ export async function setupGitBranchTracker(context: vscode.ExtensionContext): P
     return;
   }
 
+  // vscode.git may still be activating when we run onStartupFinished.
+  // Reading .exports before it is active throws and silently kills tracking
+  // (activate does not await this setup, so the rejection is easy to miss).
+  if (!gitExtension.isActive) {
+    await gitExtension.activate();
+  }
+
   const gitApi = gitExtension.exports.getAPI(1);
 
   // Set up listener for newly opened repositories

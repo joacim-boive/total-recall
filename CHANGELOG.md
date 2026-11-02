@@ -2,6 +2,11 @@
 
 All notable changes to the "Total Recall" extension will be documented in this file.
 
+## [0.7.4]
+
+- Fix branch tracking never starting when `vscode.git` activates after Total Recall (await git activation before `getAPI`)
+- Declare `vscode.git` as an extension dependency so it loads first
+
 ## [0.7.0]
 
 - Fix support for workspaces

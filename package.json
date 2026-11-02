@@ -2,7 +2,7 @@
   "name": "total-recall",
   "displayName": "Total Recall",
   "description": "It allows you to recall your context across branches.",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "publisher": "jboive",
   "icon": "images/icon-hd.png",
   "type": "commonjs",
@@ -14,6 +14,9 @@
   ],
   "activationEvents": [
     "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
   ],
   "main": "./dist/extension.js",
   "contributes": {

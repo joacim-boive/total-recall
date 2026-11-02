@@ -1,8 +1,7 @@
-
 import * as vscode from 'vscode';
 import { setupGitBranchTracker } from './gitBranchTracker';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('Total Recall - is now monitoring your git branches.');
   vscode.window.withProgress(
     {
@@ -21,7 +20,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  setupGitBranchTracker(context);
+  try {
+    await setupGitBranchTracker(context);
+  } catch (error) {
+    console.error('[Total Recall] Failed to set up branch tracking:', error);
+  }
 }
 
 // This method is called when your extension is deactivated
